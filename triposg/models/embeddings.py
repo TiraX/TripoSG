@@ -85,12 +85,31 @@ class FrequencyPositionalEmbedding(nn.Module):
         """
 
         if self.num_freqs > 0:
-            embed = (x[..., None].contiguous() * self.frequencies).view(
+            x_none = x[..., None]
+            print(x_none.shape)
+            print(x_none)
+
+            print(self.frequencies.shape)
+            print(self.frequencies)
+
+            # 位置编码计算：将输入坐标与不同频率相乘，然后重塑张量形状
+            # 1. x_none.contiguous(): 确保张量在内存中是连续存储的，这是调用view()的前提条件
+            # 2. * self.frequencies: 将输入与频率张量广播相乘，生成多个频率的编码
+            # 3. .view(*x.shape[:-1], -1): 重塑张量形状，保持前面的维度不变，将最后的维度展平
+            #    - *x.shape[:-1]: 保持batch和其他维度不变
+            #    - -1: 自动计算最后一维的大小（input_dim * num_freqs）
+            embed = (x_none.contiguous() * self.frequencies).view(
                 *x.shape[:-1], -1
             )
+
+            print(embed.shape)
+            print(embed)
+            embed_sin = embed.sin()
+            print(embed_sin.shape)
+            print(embed_sin)
             if self.include_input:
-                return torch.cat((x, embed.sin(), embed.cos()), dim=-1)
+                return torch.cat((x, embed_sin, embed.cos()), dim=-1)
             else:
-                return torch.cat((embed.sin(), embed.cos()), dim=-1)
+                return torch.cat((embed_sin, embed.cos()), dim=-1)
         else:
             return x

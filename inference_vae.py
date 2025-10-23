@@ -10,15 +10,45 @@ from huggingface_hub import snapshot_download
 
 
 def load_surface(data_path, num_pc=204800):
-    data = np.load(data_path, allow_pickle=True).tolist()
+    data = np.load(data_path, allow_pickle=True)
+    print(type(data))
+    data = data.tolist()
+    print(type(data))
+    print(data.keys())
+    print(data["surface_points"])
+    print(data["surface_normals"])
     surface = data["surface_points"]  # Nx3
     normal = data["surface_normals"]  # Nx3
+    print(surface.shape)
+    print(normal.shape)
 
     rng = np.random.default_rng()
     ind = rng.choice(surface.shape[0], num_pc, replace=False)
+    print(ind.shape)
+    print(ind)
+    # Convert the randomly sampled surface points from numpy array to PyTorch tensor
+    # surface[ind] selects the sampled points using the random indices
     surface = torch.FloatTensor(surface[ind])
+    print(surface.shape)
+    print(surface)
+
     normal = torch.FloatTensor(normal[ind])
-    surface = torch.cat([surface, normal], dim=-1).unsqueeze(0).cuda()
+    # 将表面点坐标和法向量拼接，并调整维度后移至GPU
+    # torch.cat([surface, normal], dim=-1): 在最后一个维度上拼接两个张量
+    #   - surface: [204800, 3] 表面点的xyz坐标
+    #   - normal: [204800, 3] 对应点的法向量
+    #   - 拼接后: [204800, 6] 每个点包含6个值(x,y,z,nx,ny,nz)
+    surface = torch.cat([surface, normal], dim=-1)
+    print(surface.shape)
+    print(surface)
+    # .unsqueeze(0): 在第0维增加一个维度，用于添加batch维度
+    #   - 从 [204800, 6] 变为 [1, 204800, 6]
+    #   - 1表示batch_size为1，即一次处理一个样本
+    # .cuda(): 将张量移动到GPU显存中进行加速计算
+    surface = surface.unsqueeze(0).cuda()
+    print(surface.shape)
+    print(surface)
+
 
     return surface
 

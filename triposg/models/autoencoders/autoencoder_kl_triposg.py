@@ -12,7 +12,7 @@ from diffusers.models.normalization import FP32LayerNorm, LayerNorm
 from diffusers.utils import logging
 from diffusers.utils.accelerate_utils import apply_forward_hook
 from einops import repeat
-# from torch_cluster import fps
+from torch_cluster import fps
 from tqdm import tqdm
 
 from ..attention_processor import FusedTripoSGAttnProcessor2_0, TripoSGAttnProcessor2_0, FlashTripoSGAttnProcessor2_0
@@ -441,9 +441,26 @@ class TripoSGVAEModel(ModelMixin, ConfigMixin):
     ):
         position_channels = self.config.in_channels
         positions, features = x[..., :position_channels], x[..., position_channels:]
-        x_kv = torch.cat([self.embedder(positions), features], dim=-1)
+        print(x.shape, positions.shape, features.shape)
+        print(x)
+        print(positions)
+        print(features)
+        positions_emb = self.embedder(positions)
+        print(positions_emb.shape)
+        print(positions_emb)
+        # 将位置编码和特征在最后一个维度上拼接
+        # torch.cat: 张量拼接函数，将多个张量沿指定维度连接成一个张量
+        # dim=-1: 表示在最后一个维度上拼接（-1是Python索引，指最后一维）
+        # 例如: positions_emb [B, N, D1] + features [B, N, D2] -> x_kv [B, N, D1+D2]
+        # 其中 B=batch_size, N=点数量, D1=位置编码维度, D2=特征维度
+        x_kv = torch.cat([positions_emb, features], dim=-1)
+        print(x_kv.shape)
+        print(x_kv)
+
 
         sampled_x = self._sample_features(x, num_tokens, seed)
+        print(sampled_x.shape)
+        print(sampled_x)
         positions, features = (
             sampled_x[..., :position_channels],
             sampled_x[..., position_channels:],
