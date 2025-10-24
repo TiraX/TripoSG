@@ -98,7 +98,12 @@ class FrequencyPositionalEmbedding(nn.Module):
             # 3. .view(*x.shape[:-1], -1): 重塑张量形状，保持前面的维度不变，将最后的维度展平
             #    - *x.shape[:-1]: 保持batch和其他维度不变
             #    - -1: 自动计算最后一维的大小（input_dim * num_freqs）
-            embed = (x_none.contiguous() * self.frequencies).view(
+            embed = (x_none.contiguous() * self.frequencies)
+            print(embed.shape)
+            print(embed)
+            print(x.shape[-1])
+            
+            embed = embed.view(
                 *x.shape[:-1], -1
             )
 

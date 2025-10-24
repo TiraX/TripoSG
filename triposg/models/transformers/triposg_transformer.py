@@ -303,6 +303,9 @@ class DiTBlock(nn.Module):
         # Notice that normalization is always applied before the real computation in the following blocks.
         # 0. Long Skip Connection
         if self.skip_linear is not None:
+            if skip:
+                print(skip.shape)
+                print(skip)
             cat = torch.cat(
                 (
                     [skip, hidden_states]
@@ -322,6 +325,8 @@ class DiTBlock(nn.Module):
         # 1. Self-Attention
         if self.use_self_attention:
             norm_hidden_states = self.norm1(hidden_states)
+            print(norm_hidden_states.shape)
+            print(norm_hidden_states)
             attn_output = self.attn1(
                 norm_hidden_states,
                 image_rotary_emb=image_rotary_emb,

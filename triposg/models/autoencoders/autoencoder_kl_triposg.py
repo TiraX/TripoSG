@@ -71,8 +71,17 @@ class TripoSGEncoder(nn.Module):
         self.norm_out = LayerNorm(dim)
 
     def forward(self, sample_1: torch.Tensor, sample_2: torch.Tensor):
+        print(sample_1.shape)
+        print(sample_1)
         hidden_states = self.proj_in(sample_1)
+        print(hidden_states.shape)
+        print(hidden_states)
+        
+        print(sample_2.shape)
+        print(sample_2)
         encoder_hidden_states = self.proj_in(sample_2)
+        print(encoder_hidden_states.shape)
+        print(encoder_hidden_states)
 
         for layer, block in enumerate(self.blocks):
             if layer == 0:
@@ -414,13 +423,34 @@ class TripoSGVAEModel(ModelMixin, ConfigMixin):
         indices = rng.choice(
             x.shape[1], num_tokens * 4, replace=num_tokens * 4 > x.shape[1]
         )
+        print(f'x.shape: {x.shape}')
         selected_points = x[:, indices]
+        print(selected_points.shape)
+        print(selected_points)
 
         batch_size, num_points, num_channels = selected_points.shape
         flattened_points = selected_points.view(batch_size * num_points, num_channels)
+        print(f'flattened_points{flattened_points.shape}')
+        print(flattened_points)
+        temp = torch.arange(batch_size)
+        print(temp.shape)
+        print(temp)
+        # 生成批次索引，用于标识每个点属于哪个batch
+        # torch.arange(batch_size): 生成从0到batch_size-1的连续整数序列，例如 batch_size=3 时生成 [0, 1, 2]
+        # .to(x.device): 将张量移动到与输入x相同的设备上（CPU或GPU）
+        # .repeat_interleave(num_points): 将每个元素重复num_points次
+        #   例如: [0, 1, 2].repeat_interleave(4) -> [0, 0, 0, 0, 1, 1, 1, 1, 2, 2, 2, 2]
+        #   这样可以为每个batch中的所有点都标记上对应的batch编号
         batch_indices = (
             torch.arange(batch_size).to(x.device).repeat_interleave(num_points)
         )
+
+        print(batch_indices.shape)
+        print(batch_indices)
+
+        temp = flattened_points[:, :3]
+        print(temp.shape)
+        print(temp)
 
         # fps sampling
         sampling_ratio = 1.0 / 4
@@ -430,9 +460,13 @@ class TripoSGVAEModel(ModelMixin, ConfigMixin):
             ratio=sampling_ratio,
             random_start=self.training,
         )
+        print(sampled_indices.shape)
+        print(sampled_indices)
         sampled_points = flattened_points[sampled_indices].view(
             batch_size, -1, num_channels
         )
+        print(sampled_points.shape)
+        print(sampled_points)
 
         return sampled_points
 
@@ -454,7 +488,7 @@ class TripoSGVAEModel(ModelMixin, ConfigMixin):
         # 例如: positions_emb [B, N, D1] + features [B, N, D2] -> x_kv [B, N, D1+D2]
         # 其中 B=batch_size, N=点数量, D1=位置编码维度, D2=特征维度
         x_kv = torch.cat([positions_emb, features], dim=-1)
-        print(x_kv.shape)
+        print(f'x_kv.shape = {x_kv.shape}')
         print(x_kv)
 
 
@@ -466,6 +500,8 @@ class TripoSGVAEModel(ModelMixin, ConfigMixin):
             sampled_x[..., position_channels:],
         )
         x_q = torch.cat([self.embedder(positions), features], dim=-1)
+        print(x_q.shape)
+        print(x_q)
 
         x = self.encoder(x_q, x_kv)
 
