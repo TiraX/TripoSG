@@ -7,6 +7,8 @@ from triposg.inference_utils import hierarchical_extract_geometry
 from triposg.models.autoencoders import TripoSGVAEModel
 from huggingface_hub import snapshot_download
 
+import sys
+sys.path.append('./')
 
 
 def load_surface(data_path, num_pc=204800):

@@ -17,11 +17,28 @@ def generate_dense_grid_points_gpu(bbox_min: torch.Tensor,
     num_cells = 2 ** octree_depth
     device = bbox_min.device
     
+    # 使用 torch.linspace 在 bbox_min 和 bbox_max 之间生成均匀分布的点，用于构建网格
+    # 参数说明：
+    # - bbox_min[0], bbox_max[0]: 定义 x 轴的范围
+    # - int(num_cells): 生成的点的数量，等于 2^octree_depth
+    # - dtype=torch.float16: 数据类型为半精度浮点数
+    # - device=device: 指定张量所在的设备（如 GPU）
     x = torch.linspace(bbox_min[0], bbox_max[0], int(num_cells), dtype=torch.float16, device=device)
     y = torch.linspace(bbox_min[1], bbox_max[1], int(num_cells), dtype=torch.float16, device=device)
     z = torch.linspace(bbox_min[2], bbox_max[2], int(num_cells), dtype=torch.float16, device=device)
     
+    # 使用 torch.meshgrid 生成网格坐标点
+    # 参数说明：
+    # - x, y, z: 输入的坐标轴点
+    # - indexing="ij": 指定索引方式为矩阵索引（i,j,k），而非笛卡尔坐标（x,y,z）
+    # 返回三个张量 xs, ys, zs，分别表示网格中每个点的 x、y、z 坐标
     xs, ys, zs = torch.meshgrid(x, y, z, indexing=indexing)
+    
+    # 使用 torch.stack 将 xs, ys, zs 沿最后一个维度（dim=-1）堆叠，形成 Nx3 的坐标矩阵
+    # 参数说明：
+    # - (xs, ys, zs): 需要堆叠的张量
+    # - dim=-1: 指定堆叠的维度为最后一个维度
+    # 返回一个形状为 (num_cells, num_cells, num_cells, 3) 的张量，表示网格中每个点的三维坐标
     xyz = torch.stack((xs, ys, zs), dim=-1)
     xyz = xyz.view(-1, 3)
     grid_size = [int(num_cells), int(num_cells), int(num_cells)]
@@ -121,10 +138,24 @@ def zoom_block(block, scale_factor, order=3):
     return scipy.ndimage.zoom(block, scale_factor, order=order)
 
 def parallel_zoom(occupancy_grid, scale_factor):
-    result = torch.nn.functional.interpolate(occupancy_grid.unsqueeze(0).unsqueeze(0), scale_factor=scale_factor)
-    return result.squeeze(0).squeeze(0)
-
-
+    print(occupancy_grid.shape)
+    print(occupancy_grid)
+    grid_squeeze = occupancy_grid.unsqueeze(0)
+    print(grid_squeeze.shape)
+    print(grid_squeeze)
+    grid_squeeze = grid_squeeze.unsqueeze(0)
+    print(grid_squeeze.shape)
+    print(grid_squeeze)
+    result = torch.nn.functional.interpolate(grid_squeeze, scale_factor=scale_factor)
+    print(result.shape)
+    print(result)
+    result = result.squeeze(0)
+    print(result.shape)
+    print(result)
+    result = result.squeeze(0)
+    print(result.shape)
+    print(result)
+    return result
 @torch.no_grad()
 def hierarchical_extract_geometry(geometric_func: Callable,
                      device: torch.device,
@@ -157,9 +188,9 @@ def hierarchical_extract_geometry(geometric_func: Callable,
         indexing="ij"
     )
     
-    print(f'step 1 query num: {xyz_samples.shape[0]}')
+    print(f'step 1 query num: {xyz_samples.shape}')
     grid_logits = geometric_func(xyz_samples.unsqueeze(0)).to(torch.float16).view(grid_size[0], grid_size[1], grid_size[2])
-    # print(f'step 1 grid_logits shape: {grid_logits.shape}')
+    print(f'step 1 grid_logits shape: {grid_logits.shape}')
     for i in range(hierarchical_octree_depth - dense_octree_depth):
         curr_octree_depth = dense_octree_depth + i + 1
         # upsample
@@ -177,7 +208,7 @@ def hierarchical_extract_geometry(geometric_func: Callable,
 
         all_logits = geometric_func(expanded_coords_norm.unsqueeze(0)).to(torch.float16)
         all_logits = torch.cat([expanded_coords_norm, all_logits[0]], dim=1)
-        # print("all logits shape = ", all_logits.shape)
+        print("all logits shape = ", all_logits.shape)
 
         indices = all_logits[..., :3]
         indices = indices * (normalize_offset / abs(bounds[0]))  + normalize_offset
