@@ -26,6 +26,8 @@ def generate_dense_grid_points_gpu(bbox_min: torch.Tensor,
     x = torch.linspace(bbox_min[0], bbox_max[0], int(num_cells), dtype=torch.float16, device=device)
     y = torch.linspace(bbox_min[1], bbox_max[1], int(num_cells), dtype=torch.float16, device=device)
     z = torch.linspace(bbox_min[2], bbox_max[2], int(num_cells), dtype=torch.float16, device=device)
+    print(x.shape)
+    print(x)
     
     # 使用 torch.meshgrid 生成网格坐标点
     # 参数说明：
@@ -33,6 +35,8 @@ def generate_dense_grid_points_gpu(bbox_min: torch.Tensor,
     # - indexing="ij": 指定索引方式为矩阵索引（i,j,k），而非笛卡尔坐标（x,y,z）
     # 返回三个张量 xs, ys, zs，分别表示网格中每个点的 x、y、z 坐标
     xs, ys, zs = torch.meshgrid(x, y, z, indexing=indexing)
+    print(f'{xs.shape=}, {ys.shape=}, {zs.shape=}')
+    print(xs)
     
     # 使用 torch.stack 将 xs, ys, zs 沿最后一个维度（dim=-1）堆叠，形成 Nx3 的坐标矩阵
     # 参数说明：
@@ -40,7 +44,11 @@ def generate_dense_grid_points_gpu(bbox_min: torch.Tensor,
     # - dim=-1: 指定堆叠的维度为最后一个维度
     # 返回一个形状为 (num_cells, num_cells, num_cells, 3) 的张量，表示网格中每个点的三维坐标
     xyz = torch.stack((xs, ys, zs), dim=-1)
+    print(xyz.shape)
+    print(xyz)
     xyz = xyz.view(-1, 3)
+    print(xyz.shape)
+    print(xyz)
     grid_size = [int(num_cells), int(num_cells), int(num_cells)]
 
     return xyz, grid_size, length
@@ -99,13 +107,27 @@ def find_candidates_band(occupancy_grid: torch.Tensor, band_threshold: float, n_
         torch.Tensor: A 2D tensor of coordinates (N x 3) where each row is [x, y, z].
     """
     core_grid = occupancy_grid[1:-1, 1:-1, 1:-1]  
-    # logits to sdf
-    core_grid = torch.sigmoid(core_grid) * 2 - 1  
+    print(core_grid.shape)
+    print(core_grid)
+    # Convert logits to SDF (Signed Distance Field) values
+    # Step 1: Apply sigmoid function to map logits from (-∞, +∞) to (0, 1)
+    #         sigmoid(x) = 1 / (1 + e^(-x)), which squashes any real number to range [0, 1]
+    # Step 2: Multiply by 2 to scale the range from (0, 1) to (0, 2)
+    # Step 3: Subtract 1 to shift the range from (0, 2) to (-1, 1)
+    # Final result: logits are normalized to SDF values in range [-1, 1]
+    #               where negative values indicate inside the surface, positive values indicate outside
+    core_grid = torch.sigmoid(core_grid) * 2 - 1
+    print(core_grid.shape)
+    print(core_grid)
     # Create a boolean mask for all cells in the band
     in_band = torch.abs(core_grid) < band_threshold
+    print(in_band.shape)
+    print(in_band)
 
     # Get coordinates of all voxels in the band
     core_mesh_coords = torch.nonzero(in_band, as_tuple=False) + 1
+    print(core_mesh_coords.shape)
+    print(core_mesh_coords)
 
     if n_limits != -1 and core_mesh_coords.shape[0] > n_limits:
         print(f"core mesh coords {core_mesh_coords.shape[0]} is too large, limited to {n_limits}")

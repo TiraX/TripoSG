@@ -554,7 +554,10 @@ class TripoSGVAEModel(ModelMixin, ConfigMixin):
             z_, kv_cache = self.decoder(z, queries, kv_cache)
             dec.append(z_ if not to_cpu else z_.cpu())
 
+        print(f'{len(dec)}')
         z = torch.cat(dec, dim=1)
+        print(f'{z.shape=}')
+        print(z)
 
         if not return_dict:
             return (z,)
